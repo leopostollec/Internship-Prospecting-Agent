@@ -2,8 +2,6 @@
 
 An n8n + AI agent that finds internship offers every morning, scores them against my profile, identifies who to contact and drafts a personalized LinkedIn outreach, all logged in Notion. **Running cost: €0.**
 
-![Workflow](workflow.png)
-
 ## How it works
 
 Every day at 9:00, the agent:
