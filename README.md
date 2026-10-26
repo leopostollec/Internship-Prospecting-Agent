@@ -30,6 +30,3 @@ n8n (self-hosted) · JSearch API · Google Gemini · Tavily · Notion
 
 Import `internship-prospecting-agent.json` into n8n, add your JSearch, Gemini, Tavily and Notion credentials, point the **Envoi Notion** node to your database, and edit the candidate profile in the two AI prompts.
 
----
-
-Built by [Léo Postollec](https://github.com/leopostollec), Master's student at SKEMA Business School.
