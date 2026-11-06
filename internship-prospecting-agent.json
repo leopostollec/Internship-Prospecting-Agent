@@ -6,11 +6,43 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        0,
-        -80
+        -200,
+        160
       ],
-      "id": "d7a8ea98-97d3-4d2d-b10f-b4c1bfb3241b",
-      "name": "When clicking ‘Execute workflow’"
+      "id": "a882a1df-7230-44b4-8bde-64024e4d5b48",
+      "name": "Lancement manuel"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        360
+      ],
+      "id": "2d264d2e-17f2-4f35-842b-830d1a30ea20",
+      "name": "Tous les jours 9h"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Une recherche par ligne : adapte la liste aux postes que tu vises.\n// Quota JSearch gratuit : 200 requêtes/mois -> 6 recherches/jour max.\nconst recherches = [\n  \"stage growth marketing Paris\",\n  \"stage business development Paris\",\n  \"stage business developer startup\",\n  \"growth intern Paris\",\n  \"stage marketing acquisition startup Paris\",\n  \"stage sales ops revenue operations Paris\"\n];\nreturn recherches.map(q => ({ json: { query: q } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        0
+      ],
+      "id": "b41cca52-8b37-4c33-b0d2-c7841e852a1e",
+      "name": "Requêtes JSearch"
     },
     {
       "parameters": {
@@ -22,7 +54,7 @@
           "parameters": [
             {
               "name": "query",
-              "value": "stage growth Paris"
+              "value": "={{ $json.query }}"
             },
             {
               "name": "country",
@@ -30,7 +62,7 @@
             },
             {
               "name": "date_posted",
-              "value": "3days"
+              "value": "week"
             }
           ]
         },
@@ -46,227 +78,311 @@
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
+      "typeVersion": 4.2,
       "position": [
-        224,
+        300,
         0
       ],
-      "id": "a8471bc7-42b6-4091-a3b4-d347868bfcda",
-      "name": "HTTP Request",
+      "id": "9072fe60-471f-4c86-9066-90f63129dfd5",
+      "name": "Recherche JSearch",
       "credentials": {
         "httpHeaderAuth": {
           "name": "Header Auth account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "fieldToSplitOut": "data.jobs",
-        "options": {}
+        "jsCode": "// Transforme les réponses JSearch en une offre par item, avec des champs standard.\n// Accepte data = liste OU data.jobs = liste (le format de l'API a déjà changé une fois).\nconst offres = [];\nfor (const item of $input.all()) {\n  const d = item.json.data;\n  const jobs = Array.isArray(d) ? d : (d && Array.isArray(d.jobs) ? d.jobs : []);\n  for (const j of jobs) {\n    offres.push({ json: {\n      titre: j.job_title || \"\",\n      entreprise: j.employer_name || \"\",\n      site_entreprise: j.employer_website || \"\",\n      lien_offre: j.job_apply_link || (j.apply_options && j.apply_options[0] && j.apply_options[0].apply_link) || j.job_google_link || \"\",\n      source: \"JSearch - \" + (j.job_publisher || \"web\"),\n      ville: j.job_location || j.job_city || \"\",\n      description: j.job_description || \"\",\n      id: j.job_id || j.job_apply_link || (j.job_title + \"|\" + j.employer_name)\n    }});\n  }\n}\nreturn offres;"
       },
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        448,
+        520,
         0
       ],
-      "id": "c296e641-731c-44ac-a23d-c5172ac56865",
-      "name": "Split Out"
+      "id": "e9fc7e70-9887-47cf-b7c3-5d1c465ec9c8",
+      "name": "Offres JSearch"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "ccd15c4f-857d-488b-90d4-bdbc359bf201",
-              "name": "titre",
-              "value": "={{ $json.job_title }}",
-              "type": "string"
-            },
-            {
-              "id": "33d10482-e60b-4a83-a0e7-e550f53a591d",
-              "name": "entreprise",
-              "value": "={{ $json.employer_name }}",
-              "type": "string"
-            },
-            {
-              "id": "3091fe58-e109-4e6e-964c-85131009970f",
-              "name": "site_entreprise",
-              "value": "={{ $json.employer_website }}",
-              "type": "string"
-            },
-            {
-              "id": "2dcaade5-7eaf-4d00-9011-810f7c605c28",
-              "name": "lien_offre",
-              "value": "={{ $json.apply_options[0].apply_link }}",
-              "type": "string"
-            },
-            {
-              "id": "338e223b-0fbb-4b79-a87d-aa358b045636",
-              "name": "source",
-              "value": "={{ $json.job_publisher }}",
-              "type": "string"
-            },
-            {
-              "id": "c5f9aeb9-66fb-4649-83ba-cab882962cc8",
-              "name": "ville",
-              "value": "={{ $json.job_location }}",
-              "type": "string"
-            },
-            {
-              "id": "cb4e435b-2047-40c4-8230-81016c5047e8",
-              "name": "date_publication",
-              "value": "={{ $json.job_posted_at }}",
-              "type": "string"
-            },
-            {
-              "id": "7663df7e-2ab0-4adf-877c-c11618e69843",
-              "name": "description",
-              "value": "={{ $json.job_description }}",
-              "type": "string"
-            },
-            {
-              "id": "98023d68-6b0d-4f53-b7e1-2b5658dc8ee6",
-              "name": "id",
-              "value": "={{ $json.job_id }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Recherches de posts LinkedIn publics qui annoncent un stage.\n// Chaque recherche coûte 1 crédit Tavily (1000 gratuits/mois).\nconst recherches = [\n  \"recrute stagiaire growth\",\n  \"on recrute stage business development\",\n  \"nous recrutons stagiaire marketing startup\",\n  \"hiring growth intern Paris\"\n];\nreturn recherches.map(q => ({ json: { query: q } }));"
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        640,
-        0
+        80,
+        320
       ],
-      "id": "460a31be-0fd5-4112-a855-502aff0dac9e",
-      "name": "Edit Fields"
+      "id": "f8fb26d2-9525-4468-a4f9-764597cd66e9",
+      "name": "Requêtes posts LinkedIn"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "url": "https://api.tavily.com/search",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gemini-3.8-flash\",\n  \"temperature\": 0.2,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un recruteur expert en growth et business development dans la tech. Tu évalues si une offre de stage correspond au profil d'un candidat. PROFIL DU CANDIDAT : Léo, 20 ans, étudiant en M1 du Programme Grande École de SKEMA Business School (cursus en anglais, anglais B2), parcours BTS GPME puis prépa ATS Éco-Gestion. Statut étudiant-entrepreneur, A construit avec n8n et l'IA un agent de prospection qui trouve, note et prépare la prise de contact pour des offres de stage. RECHERCHE : stage de 6 mois à partir de janvier 2027, en growth, growth marketing, business development ou GTM, idéalement dans une startup ou scale-up tech, à Paris de préférence. Réponds UNIQUEMENT en JSON avec ce format : {\\\"score\\\": nombre de 0 à 10, \\\"raison\\\": \\\"une phrase qui justifie la note\\\", \\\"categorie\\\": \\\"growth\\\" ou \\\"bizdev\\\" ou \\\"autre\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\"Titre : \" + $json.titre + \"\\nEntreprise : \" + $json.entreprise + \"\\nVille : \" + $json.ville + \"\\nDescription : \" + ($json.description || \"\").slice(0, 3000)) }}\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"query\": {{ JSON.stringify($json.query) }},\n  \"include_domains\": [\"linkedin.com\"],\n  \"time_range\": \"week\",\n  \"search_depth\": \"basic\",\n  \"max_results\": 10\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        320
+      ],
+      "id": "9f8f228d-8616-4539-a9f6-c73d4a099c94",
+      "name": "Recherche posts LinkedIn",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Tavily"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ne garde que les vrais posts (pas les profils ni les pages entreprise).\nconst vus = new Set(); const posts = [];\nfor (const item of $input.all()) {\n  for (const r of (item.json.results || [])) {\n    const url = r.url || \"\";\n    if (!(url.includes(\"/posts/\") || url.includes(\"/feed/update/\"))) continue;\n    const cle = url.split('?')[0].replace(/^https?:\\/\\/[a-z]+\\.linkedin\\.com/, 'https://linkedin.com');\n    if (vus.has(cle)) continue; vus.add(cle);\n    posts.push({ json: { id: cle, lien_offre: url, titre_post: r.title || \"\", contenu: (r.content || \"\").slice(0, 2000) } });\n  }\n}\nreturn posts;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        320
+      ],
+      "id": "77f7bfe9-dd2d-4c39-a00a-5bc570f6dc20",
+      "name": "Garder les posts"
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        740,
+        320
+      ],
+      "id": "0355669a-31c2-4b50-873b-9d760c9fca75",
+      "name": "Posts déjà vus"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"openai/gpt-oss-120b\",\n  \"temperature\": 0,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"Tu analyses un post LinkedIn. Détermine s'il annonce une offre de STAGE ouverte (pas un CDI, pas une alternance, pas quelqu'un qui cherche un stage). Réponds UNIQUEMENT en JSON : {\\\"est_offre_stage\\\": true ou false, \\\"entreprise\\\": \\\"nom de l'entreprise qui recrute ou chaîne vide\\\", \\\"poste\\\": \\\"intitulé du stage ou chaîne vide\\\", \\\"ville\\\": \\\"ville ou chaîne vide\\\", \\\"auteur\\\": \\\"nom de l'auteur du post si visible\\\"}\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify(\"Titre : \" + $json.titre_post + \"\\nContenu : \" + $json.contenu) }} }\n  ]\n}",
         "options": {
           "batching": {
             "batch": {
               "batchSize": 1,
-              "batchInterval": 12000
+              "batchInterval": 10000
             }
           }
         }
       },
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
+      "typeVersion": 4.2,
       "position": [
-        1376,
-        0
+        960,
+        320
       ],
-      "id": "2b53b859-832a-4351-b8e8-3e6aa6ed8b9d",
-      "name": "Gemini",
+      "id": "4b162758-2cec-4af2-b472-4ed08e156ac1",
+      "name": "Lire le post (IA)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Groq"
+        }
+      },
       "retryOnFail": true,
-      "waitBetweenTries": 5000,
       "maxTries": 5,
-      "credentials": {
-        "httpHeaderAuth": {
-          "name": "Gemini"
-        }
-      }
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Garde les posts qui annoncent vraiment un stage, au même format que les offres JSearch.\nconst originaux = $('Posts déjà vus').all();\nconst offres = [];\n$input.all().forEach((item, i) => {\n  let r = {};\n  try { r = JSON.parse(item.json.choices[0].message.content); } catch (e) { return; }\n  if (!r.est_offre_stage || !r.entreprise) return;\n  const o = originaux[i] ? originaux[i].json : {};\n  offres.push({ json: {\n    titre: \"Stage \" + (r.poste || \"(post LinkedIn)\"),\n    entreprise: r.entreprise,\n    site_entreprise: \"\",\n    lien_offre: o.lien_offre || \"\",\n    source: \"Post LinkedIn\" + (r.auteur ? \" de \" + r.auteur : \"\"),\n    ville: r.ville || \"\",\n    description: o.contenu || \"\",\n    id: o.id || \"\"\n  }});\n});\nreturn offres;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        320
+      ],
+      "id": "5cdc7586-3d6f-46da-9cff-7720f8acefc8",
+      "name": "Offres posts LinkedIn"
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        160
+      ],
+      "id": "e6607adc-8d85-4be5-a305-27192cb0c108",
+      "name": "Doublons du jour"
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        160
+      ],
+      "id": "d5d4222b-72b0-4d11-8bed-f987a4df65be",
+      "name": "Déjà vues"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "af13273d-e236-44b7-864a-0186a4c9d8d9",
+              "leftValue": "={{ /(stage|stagiaire|intern)/i.test($json.titre) && !/(alternance|apprenti|cdi)/i.test($json.titre) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        160
+      ],
+      "id": "fa978f62-08a2-4f20-9906-dc51f02647ae",
+      "name": "Filtre stages"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.tavily.com/search",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"query\": {{ JSON.stringify('\"' + $('Résultat IA').item.json.entreprise + '\"') }},\n  \"topic\": \"news\",\n  \"time_range\": \"month\",\n  \"max_results\": 3\n}",
-        "options": {}
+        "jsonBody": "={\n  \"model\": \"openai/gpt-oss-120b\",\n  \"temperature\": 0,\n  \"seed\": 42,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un recruteur expert en growth et business development dans la tech. Tu évalues si une offre de stage correspond au profil d'un candidat. PROFIL DU CANDIDAT : Léo, 20 ans, étudiant en M1 du Programme Grande École de SKEMA Business School (cursus en anglais, anglais B2), parcours BTS GPME puis prépa ATS Éco-Gestion. Statut étudiant-entrepreneur, A construit avec n8n et l'IA un agent de prospection qui trouve, note et prépare la prise de contact pour des offres de stage. RECHERCHE : stage de 6 mois à partir de janvier 2027, en growth, growth marketing, business development ou GTM, idéalement dans une startup ou scale-up tech, à Paris de préférence. Note avec cette grille, sans arrondir ni compenser : metier de 0 à 4 (4 = growth, growth marketing, business development ou GTM au coeur du poste ; 2 = marketing ou sales proche ; 0 = sans rapport). disponibilite de 0 à 2 (2 = stage de 6 mois compatible avec janvier 2027 ; 1 = information absente ; 0 = incompatible). entreprise de 0 à 2 (2 = startup ou scale-up tech ; 1 = autre entreprise tech ou information absente ; 0 = hors tech). lieu de 0 à 2 (2 = Paris ; 1 = autre ville en France, télétravail ou information absente ; 0 = hors de France). Réponds UNIQUEMENT en JSON avec ce format : {\\\"metier\\\": nombre, \\\"disponibilite\\\": nombre, \\\"entreprise\\\": nombre, \\\"lieu\\\": nombre, \\\"raison\\\": \\\"une phrase qui justifie la note\\\", \\\"categorie\\\": \\\"growth\\\" ou \\\"bizdev\\\" ou \\\"autre\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\"Titre : \" + $json.titre + \"\\nEntreprise : \" + $json.entreprise + \"\\nVille : \" + $json.ville + \"\\nDescription : \" + ($json.description || \"\").slice(0, 3000)) }}\n    }\n  ]\n}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 15000
+            }
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
+      "typeVersion": 4.2,
       "position": [
-        2032,
-        0
+        2300,
+        160
       ],
-      "id": "478707ec-fcab-4cab-9096-9e9f5803e053",
-      "name": "Tavily News",
+      "id": "a1872c6d-6c4d-423b-920a-918bf3b38c32",
+      "name": "Scoring IA",
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Tavily"
+          "name": "Groq"
         }
-      }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.tavily.com/search",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"query\": {{ JSON.stringify($json.entreprise + \" head of growth OR CMO OR marketing manager OR fondateur OR CEO\") }},\n  \"include_domains\": [\"linkedin.com\"],\n  \"search_depth\": \"basic\",\n  \"max_results\": 5\n}",
-        "options": {}
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        1840,
-        0
-      ],
-      "id": "8442d8b0-2130-4983-a55f-159d25dfc869",
-      "name": "Tavily Contact",
-      "credentials": {
-        "httpHeaderAuth": {
-          "name": "Tavily"
-        }
-      }
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "5ad4cef5-93fb-4ac5-a13a-6ef41ba1f9c7",
+              "id": "88fd8d4f-cd35-444b-9d5f-55183d9586fc",
               "name": "titre",
-              "value": "={{ $('Edit Fields').item.json.titre }}",
+              "value": "={{ $('Filtre stages').item.json.titre }}",
               "type": "string"
             },
             {
-              "id": "baaf584c-fd68-4665-b5e1-5ecf0a139642",
+              "id": "13f662d7-4d40-4de7-a728-442d40b6bea4",
               "name": "entreprise",
-              "value": "={{ $('Edit Fields').item.json.entreprise }}",
+              "value": "={{ $('Filtre stages').item.json.entreprise }}",
               "type": "string"
             },
             {
-              "id": "b153ef98-f41e-4c3f-934a-dee67703dddd",
+              "id": "4449dfac-7531-4cd3-9b66-d801b13b01a6",
               "name": "lien_offre",
-              "value": "={{ $('Edit Fields').item.json.lien_offre }}",
+              "value": "={{ $('Filtre stages').item.json.lien_offre }}",
               "type": "string"
             },
             {
-              "id": "d9d81d98-bf8c-460e-833a-d52905e340d1",
+              "id": "2a4fc021-4990-4069-bb17-573712466e05",
+              "name": "source",
+              "value": "={{ $('Filtre stages').item.json.source }}",
+              "type": "string"
+            },
+            {
+              "id": "a3362c23-53b4-4f9d-a986-2f25957745dd",
+              "name": "description",
+              "value": "={{ ($('Filtre stages').item.json.description || '').slice(0, 1500) }}",
+              "type": "string"
+            },
+            {
+              "id": "b9519261-addc-4461-98c3-2931ecf1e806",
               "name": "id",
-              "value": "={{ $('Edit Fields').item.json.id }}",
+              "value": "={{ $('Filtre stages').item.json.id }}",
               "type": "string"
             },
             {
-              "id": "c5b25335-2a55-4f0a-8779-790424d0055b",
+              "id": "f4af4a0a-bc3f-4642-b46d-a5a85815fa2c",
               "name": "score",
-              "value": "={{ JSON.parse($json.choices[0].message.content).score }}",
+              "value": "={{ (r => Math.min(4, Number(r.metier)||0) + Math.min(2, Number(r.disponibilite)||0) + Math.min(2, Number(r.entreprise)||0) + Math.min(2, Number(r.lieu)||0))(JSON.parse($json.choices[0].message.content)) }}",
               "type": "number"
             },
             {
-              "id": "28e15a18-e20e-4072-8889-29d6bc343608",
+              "id": "4f1f3f5b-2bc8-49b2-8940-d60baac9a8ce",
               "name": "raison",
               "value": "={{ JSON.parse($json.choices[0].message.content).raison }}",
+              "type": "string"
+            },
+            {
+              "id": "6c262a80-0081-4c0e-aa97-a934cd16de53",
+              "name": "categorie",
+              "value": "={{ JSON.parse($json.choices[0].message.content).categorie || 'autre' }}",
               "type": "string"
             }
           ]
@@ -274,12 +390,12 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
+      "typeVersion": 3.4,
       "position": [
-        1520,
-        0
+        2520,
+        160
       ],
-      "id": "0f42b6a8-4af1-470d-8f84-e292c41923d4",
+      "id": "f17b90ee-110f-497d-b4d7-4bd0565b9874",
       "name": "Résultat IA"
     },
     {
@@ -288,42 +404,86 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict",
-            "version": 4
+            "typeValidation": "loose",
+            "version": 2
           },
           "conditions": [
             {
-              "id": "9ab63ce0-2d3e-4b4c-b667-d555724bb7d7",
+              "id": "40eb5260-4a7a-47b8-91e0-dd5550a14473",
               "leftValue": "={{ $json.score }}",
-              "rightValue": 7,
               "operator": {
                 "type": "number",
                 "operation": "gte"
-              }
+              },
+              "rightValue": 7
             }
           ],
           "combinator": "and"
         },
+        "looseTypeValidation": true,
         "options": {}
       },
       "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.4,
+      "typeVersion": 2.2,
       "position": [
-        1680,
-        0
+        2740,
+        160
       ],
-      "id": "8e341269-64e1-481a-beeb-5c6e3c877f4e",
-      "name": "Filter-score"
+      "id": "160da8ea-c1fc-4367-bb49-07b1ebe00f10",
+      "name": "Score ≥ 7"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "url": "https://api.tavily.com/search",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gemini-3.8-flash\",\n  \"temperature\": 0.6,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu aides Léo, étudiant en M1 à SKEMA Business School (cursus en anglais), à décrocher un stage de 6 mois en growth / business development à partir de janvier 2027. Son principal argument : il a construit lui-même, avec n8n et l'IA, un agent qui scanne chaque jour les offres de stage, les note selon son profil, identifie la bonne personne à contacter et prépare le message. STRATÉGIE EN 2 TEMPS : d'abord une demande de connexion LinkedIn très courte, puis un message une fois la connexion acceptée. MISSION : 1) Parmi les profils fournis, choisis LA personne la plus pertinente (priorité : Head of Growth / responsable marketing, sinon fondateur/CEO pour une petite boîte). 2) Trouve la meilleure ACCROCHE personnalisée, par ordre de préférence : un changement récent de la personne (nouveau poste, nouveau projet), une actualité récente de l'entreprise, sinon un élément marquant de son parcours ou de l'entreprise. 3) message_connexion : 150 caractères MAXIMUM, simple et humain, qui fait référence à l'accroche, sans demander de stage. 4) message_suivi : 4 à 6 lignes. Commence par l'accroche, fais ensuite le lien avec le stage, présente brièvement Léo et son outil comme preuve de compétence, et termine par une demande simple (un échange de 15 minutes ou le bon interlocuteur pour le stage). Ton naturel, pas de flatterie, pas de formule creuse.L'accroche doit citer un détail PRÉCIS et nommé (un projet, une entreprise, une date, un chiffre), jamais une formule générale. INTERDIT : 'je suis avec intérêt', 'je suis de près', 'votre parcours m'inspire', 'j'ai été impressionné' et toute mention de moment ('ce matin', 'aujourd'hui'). Léo vient de découvrir l'entreprise : il ne prétend pas la suivre depuis longtemps. N'invente AUCUN fait : utilise uniquement les infos fournies. Réponds UNIQUEMENT en JSON : {\\\"contact_nom\\\": \\\"...\\\", \\\"contact_poste\\\": \\\"...\\\", \\\"contact_linkedin\\\": \\\"url\\\", \\\"accroche\\\": \\\"le fait utilisé et d'où il vient\\\", \\\"message_connexion\\\": \\\"...\\\", \\\"message_suivi\\\": \\\"...\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\"OFFRE : \" + $json.titre + \" chez \" + $json.entreprise + \"\\nLien : \" + $json.lien_offre + \"\\n\\nPROFILS LINKEDIN TROUVÉS :\\n\" + $json.contacts_bruts + \"\\n\\nACTUALITÉS RÉCENTES :\\n\" + $json.actus) }}\n    }\n  ]\n}",
+        "jsonBody": "={{ JSON.stringify({ query: '\"' + $json.entreprise + '\" ' + ($json.categorie === 'bizdev' ? 'head of sales OR business development OR VP sales OR fondateur OR CEO' : 'head of growth OR growth manager OR head of marketing OR CMO OR fondateur OR CEO'), include_domains: ['linkedin.com'], search_depth: 'basic', max_results: 10 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2960,
+        160
+      ],
+      "id": "04bfad97-9e77-4a8d-9ff3-06b1db9ed3b3",
+      "name": "Chercher contacts",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Tavily"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Garde uniquement les profils LinkedIn (/in/) qui mentionnent bien l'entreprise qui recrute.\n// C'est ce filtre qui évite de contacter quelqu'un d'une autre boîte (ex. Poppins -> une CMO d'Upstart).\nconst offre = $('Résultat IA').item.json;\nconst norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');\nconst motsEntreprise = norm(offre.entreprise)\n  .replace(/\\b(sas|sa|sarl|group|groupe|france|inc|ltd|the)\\b/g, ' ')\n  .split(/[^a-z0-9]+/).filter(m => m.length > 2);\n\nconst profils = [];\nfor (const r of ($json.results || [])) {\n  const url = r.url || '';\n  if (!url.includes('linkedin.com/in/')) continue;\n  const texte = norm((r.title || '') + ' ' + (r.content || ''));\n  if (!motsEntreprise.length || !motsEntreprise.every(m => texte.includes(m))) continue;\n  profils.push((r.title || '') + ' | ' + url + '\\n' + (r.content || '').slice(0, 500));\n}\n\n// Si l'offre vient d'un post LinkedIn, son auteur est un candidat naturel.\nconst auteur = (offre.source || '').startsWith('Post LinkedIn de ') ? offre.source.replace('Post LinkedIn de ', '') : '';\nif (auteur) profils.unshift('AUTEUR DU POST QUI ANNONCE LE STAGE : ' + auteur + ' | lien du post : ' + offre.lien_offre);\n\nreturn { json: { ...offre, profils: profils.join('\\n\\n---\\n\\n'), nb_profils: profils.length } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3180,
+        160
+      ],
+      "id": "0657df5b-a295-4d19-8a0d-30e8b3059c16",
+      "name": "Filtrer profils"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-oss-120b', temperature: 0, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: \"Tu choisis LA personne que Léo, étudiant, doit contacter sur LinkedIn pour une offre de stage.\\n\\nRÈGLES, dans cet ordre :\\n1. La personne doit travailler ACTUELLEMENT dans l'entreprise qui recrute : son titre ou l'extrait de son profil doit présenter cette entreprise comme son poste actuel. Rejette les anciens salariés (ex-, former, ancien, previously), les homonymes d'une autre entreprise, les étudiants et stagiaires.\\n2. Si l'offre nomme le futur manager ou l'équipe de rattachement, choisis cette personne si elle est dans la liste.\\n3. Si la source est un post LinkedIn, son auteur est prioritaire s'il travaille dans l'entreprise.\\n4. Sinon, par ordre de préférence : le futur manager probable (growth : Head of Growth, Growth Lead, Head of Marketing, CMO ; bizdev : Head of Sales, Head of Business Development, VP Sales, CRO) ; pour une entreprise de moins de 50 personnes environ, un fondateur ou le CEO ; en dernier recours, un ou une recruteur (talent acquisition).\\n5. N'invente jamais un nom ni une URL : uniquement les profils fournis. Si aucun ne respecte la règle 1, renvoie des champs vides et la confiance aucune.\\n\\nConfiance : haute = entreprise actuelle certaine ET rôle pertinent ; moyenne = entreprise actuelle certaine mais rôle approximatif ; faible = doute sur l'entreprise actuelle.\\n\\nRéponds UNIQUEMENT en JSON avec ces clés : contact_nom, contact_poste, contact_linkedin (URL exacte du profil), pourquoi (une phrase), confiance (haute, moyenne, faible ou aucune).\" }, { role: 'user', content: 'ENTREPRISE QUI RECRUTE : ' + $json.entreprise + '\\nOFFRE : ' + $json.titre + ' (catégorie : ' + $json.categorie + ')\\nSOURCE : ' + $json.source + '\\nEXTRAIT DE L\\'OFFRE : ' + ($json.description || '').slice(0, 1200) + '\\n\\nPROFILS TROUVÉS :\\n' + ($json.profils || 'aucun') } ] }) }}",
         "options": {
           "batching": {
             "batch": {
@@ -334,162 +494,193 @@
         }
       },
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
+      "typeVersion": 4.2,
       "position": [
-        2352,
-        0
+        3400,
+        160
       ],
-      "id": "b1afe39c-3eba-4b01-83bc-6f83adb40fb6",
-      "name": "Message IA",
-      "retryOnFail": true,
-      "waitBetweenTries": 5000,
-      "maxTries": 5,
+      "id": "a623a2c9-f1e1-4573-abf1-3e9a1097b096",
+      "name": "Choisir contact (IA)",
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Gemini"
+          "name": "Groq"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "801d2c6c-0804-4fe8-97b6-924f1def06d0",
-              "name": "titre",
-              "value": "={{ $('Résultat IA').item.json.titre }}",
-              "type": "string"
-            },
-            {
-              "id": "bd8b28b4-5ab3-4beb-b187-c7a71949a8a5",
-              "name": "entreprise",
-              "value": "={{ $('Résultat IA').item.json.entreprise }}",
-              "type": "string"
-            },
-            {
-              "id": "e6b2c317-e368-4cc6-bec8-20f94dc8bfd7",
-              "name": "lien_offre",
-              "value": "={{ $('Résultat IA').item.json.lien_offre }}",
-              "type": "string"
-            },
-            {
-              "id": "09c9cc30-d416-4490-ab33-80aebe909e0a",
-              "name": "score",
-              "value": "={{ $('Résultat IA').item.json.score }}",
-              "type": "string"
-            },
-            {
-              "id": "af306ca7-2499-4c12-aa40-b68e301abe4c",
-              "name": "raison",
-              "value": "={{ $('Résultat IA').item.json.raison }}",
-              "type": "string"
-            },
-            {
-              "id": "905224eb-fcbd-441d-8aba-54b0629c2327",
-              "name": "contacts_bruts",
-              "value": "={{ $('Tavily Contact').item.json.results.map(r => r.title + \" — \" + r.url + \"\\n\" + r.content.slice(0, 600)).join(\"\\n\\n---\\n\\n\") }}",
-              "type": "string"
-            },
-            {
-              "id": "91146b4b-d9c3-4294-a5bc-43477a889264",
-              "name": "actus",
-              "value": "={{ $json.results.map(r => r.title + \" : \" + r.content.slice(0, 300)).join(\"\\n\\n\") || \"Aucune actu récente\" }}",
-              "type": "string"
-            }
-          ]
-        },
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Lit la réponse de l'IA sans planter si le JSON est cassé, et la fusionne avec l'offre.\nconst offre = $('Filtrer profils').item.json;\nlet c = {};\ntry { c = JSON.parse($json.choices[0].message.content); } catch (e) {}\n// Garde-fou : l'URL doit faire partie des profils fournis (l'IA ne doit rien inventer).\nconst urlOk = c.contact_linkedin && (offre.profils || '').includes(c.contact_linkedin);\nconst nom = urlOk || (c.contact_nom && (offre.profils || '').includes(c.contact_nom)) ? (c.contact_nom || '') : '';\nreturn { json: {\n  ...offre,\n  contact_nom: nom,\n  contact_poste: nom ? (c.contact_poste || '') : '',\n  contact_linkedin: urlOk ? c.contact_linkedin : '',\n  pourquoi_contact: nom ? (c.pourquoi || '') : 'Aucun profil fiable de l\\'entreprise trouvé',\n  confiance: nom ? (c.confiance || 'faible') : 'aucune'\n} };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3620,
+        160
+      ],
+      "id": "410802bd-9b9a-402a-b59a-7ca579108c85",
+      "name": "Contact choisi"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $json.contact_nom ? ('\"' + $json.contact_nom + '\" ' + $json.entreprise) : ($json.entreprise + ' équipe growth interview'), search_depth: 'advanced', max_results: 8 }) }}",
         "options": {}
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        2192,
-        0
+        3840,
+        160
       ],
-      "id": "bb9de5b3-09a1-481c-a309-741ecc87b416",
+      "id": "9c5e05ff-880a-4e53-88d2-e5f1e069e072",
+      "name": "Recherche sur la personne",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Tavily"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: '\"' + $('Contact choisi').item.json.entreprise + '\"', topic: 'news', time_range: 'month', max_results: 3 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4060,
+        160
+      ],
+      "id": "b285f070-4d3c-4155-9f85-1aedfff34558",
+      "name": "Chercher actus",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Tavily"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Rassemble tout ce que l'IA a le droit d'utiliser pour écrire.\nconst o = $('Contact choisi').item.json;\nconst norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');\nconst nomFamille = norm((o.contact_nom || '').trim().split(/\\s+/).slice(-1)[0]);\n\n// Infos sur la personne : on ne garde que les résultats qui la citent ET parlent de l'entreprise ou viennent de LinkedIn (évite les homonymes).\nconst motEntreprise = norm(o.entreprise).split(/[^a-z0-9]+/).filter(m => m.length > 2)[0] || '';\nconst infos = ($('Recherche sur la personne').item.json.results || [])\n  .filter(r => {\n    const t = norm(r.title + ' ' + r.content);\n    if (!nomFamille) return true;\n    return t.includes(nomFamille) && ((motEntreprise && t.includes(motEntreprise)) || (r.url || '').includes('linkedin.com'));\n  })\n  .map(r => '- ' + (r.title || '') + ' (' + (r.url || '') + ')' + (r.published_date ? ' [' + r.published_date + ']' : '') + '\\n  ' + (r.content || '').slice(0, 700))\n  .join('\\n');\n\nconst actus = ($json.results || [])\n  .map(r => '- ' + (r.title || '') + (r.published_date ? ' [' + r.published_date + ']' : '') + ' : ' + (r.content || '').slice(0, 350))\n  .join('\\n');\n\nreturn { json: {\n  ...o,\n  infos_personne: infos || 'Rien trouvé sur cette personne.',\n  actus: actus || 'Aucune actualité récente.'\n} };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4280,
+        160
+      ],
+      "id": "7e0435cb-a037-4b64-9bf7-02ac517a3f3d",
       "name": "Contexte"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "1dc46b77-4933-4962-b890-8c8ef1433ed8",
-              "name": "titre",
-              "value": "={{ $('Contexte').item.json.titre }}",
-              "type": "string"
-            },
-            {
-              "id": "386cac7c-5bfe-408e-b2e9-e6bb8d00049e",
-              "name": "entreprise",
-              "value": "={{ $('Contexte').item.json.entreprise }}",
-              "type": "string"
-            },
-            {
-              "id": "3817d959-2729-427c-8df3-c7620cf0228c",
-              "name": "lien_offre",
-              "value": "={{ $('Contexte').item.json.lien_offre }}",
-              "type": "string"
-            },
-            {
-              "id": "439fa31b-f4fe-42ee-ac12-3c72b9d4fb19",
-              "name": "score",
-              "value": "={{ $('Contexte').item.json.score }}",
-              "type": "number"
-            },
-            {
-              "id": "9a683b4a-4b32-4837-a4dd-577223d8fedd",
-              "name": "raison",
-              "value": "={{ $('Contexte').item.json.raison }}",
-              "type": "string"
-            },
-            {
-              "id": "8f7dd39c-0d71-4f07-b24a-a0fff020510c",
-              "name": "contact_nom",
-              "value": "={{ JSON.parse($json.choices[0].message.content).contact_nom }}",
-              "type": "string"
-            },
-            {
-              "id": "68065bb2-3dc4-4309-b9d1-b8bafb435ebe",
-              "name": "contact_poste",
-              "value": "={{ JSON.parse($json.choices[0].message.content).contact_poste }}",
-              "type": "string"
-            },
-            {
-              "id": "df9d3383-da54-4c8e-85a8-d926166a4453",
-              "name": "contact_linkedin",
-              "value": "={{ JSON.parse($json.choices[0].message.content).contact_linkedin }}",
-              "type": "string"
-            },
-            {
-              "id": "5beabffa-1248-40e2-8b06-8c9c69383dbe",
-              "name": "accroche",
-              "value": "={{ JSON.parse($json.choices[0].message.content).accroche }}",
-              "type": "string"
-            },
-            {
-              "id": "89854e71-0b26-4132-bf40-f9d52d729db6",
-              "name": "message_connexion",
-              "value": "={{ JSON.parse($json.choices[0].message.content).message_connexion }}",
-              "type": "string"
-            },
-            {
-              "id": "cb7a8dec-aa75-4d17-9e66-6e138ca67a3f",
-              "name": "message_suivi",
-              "value": "={{ JSON.parse($json.choices[0].message.content).message_suivi }}",
-              "type": "string"
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-oss-120b', temperature: 0.5, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: \"QUI EST LÉO (n'utilise que ces faits) :\\n- 20 ans, M1 du Programme Grande École de SKEMA Business School (campus de Sophia Antipolis, cursus 100 % en anglais). Avant : BTS GPME puis prépa ATS Éco-Gestion.\\n- Cherche un stage de 6 mois à partir de janvier 2027 en growth, growth marketing, business development ou GTM, idéalement à Paris.\\n\\nPREUVES DISPONIBLES (choisis la plus utile pour CETTE offre et CETTE personne, deux au maximum, jamais la liste complète) :\\nP1 - Automatisation / IA : il a construit seul, avec n8n et des LLM, l'agent qui a trouvé cette offre. Chaque jour il scanne les offres et les posts LinkedIn, note chaque offre selon son profil, identifie la bonne personne et prépare le message. Coût : 0 euro. Idéal pour growth, GTM, ops, startups IA ou automation.\\nP2 - Partenariats / vente : à 19 ans, président du GDO Quimper Escalade, le plus gros club d'escalade du Grand Ouest (500 adhérents, 6 salariés). Il y a multiplié par 5 le budget partenariats et organisé un championnat de France de paraescalade. Idéal pour bizdev, sales, partenariats, événementiel, sport.\\nP3 - Produit / acquisition : il construit Soiremy, une app sociale pour organiser ses sorties entre étudiants (Lovable + Supabase), avec un lancement sur invitation via des ambassadeurs. Idéal pour produit, apps grand public, community, marketplaces.\\nP4 - E-commerce : il lance une boutique Shopify mono-produit avec acquisition sur TikTok et Instagram. Pas encore de résultats chiffrés : n'en invente aucun. Idéal pour e-commerce, D2C, social ads, contenu.\\nP5 - Sport : grimpeur de compétition, champion de France scolaire d'escalade. Seulement si l'entreprise touche au sport ou à l'outdoor.\\n\\nTu écris un message LinkedIn À LA PLACE de Léo, à la première personne, exactement comme un étudiant de 20 ans l'écrirait lui-même à quelqu'un du milieu startup. Le but : que la personne ait envie de lui répondre parce que le message est humain et montre qu'il s'est intéressé à ELLE.\\n\\nLE STYLE À COPIER (message donné en exemple par des Heads of Growth) :\\n« Salut Edouard, j'ai vu que ça faisait un an que tu étais arrivé à New York, j'espère que ça se passe bien ! GG pour la levée de fonds que vous venez de faire, c'est trop cool. Je suis étudiant en M1 à SKEMA et je cherche un stage en growth à partir de janvier. Est-ce que tu serais dispo pour en discuter ? »\\nCe qui marche dans ce message : il parle d'abord de la PERSONNE (un fait de sa vie pro, avec un mot sincère), puis de sa BOÎTE (une actu, avec une réaction spontanée), et seulement ensuite de Léo, en deux phrases. La demande est simple et directe. Ça se lit en 10 secondes.\\n\\nÉTAPE 1 - TROUVER DEUX FAITS dans les sources (n'invente jamais rien) :\\nA) Un fait sur la PERSONNE, par ordre de préférence : un changement récent (arrivée dans l'entreprise, nouveau poste, promotion, déménagement ou expatriation dans une autre ville ou un autre pays), un anniversaire de poste (calcule la durée avec la DATE DU JOUR : « ça fait un an que tu es arrivé chez X »), un post, une interview ou un podcast qu'elle a fait, un projet qu'elle porte.\\nB) Une actu de l'ENTREPRISE : levée de fonds, lancement de produit, ouverture d'un pays ou d'un bureau, gros client, prix, recrutements.\\nSi tu n'as qu'un des deux, utilise celui-là. Si tu n'as ni l'un ni l'autre, appuie-toi sur un détail précis de l'offre (une mission, un outil), jamais sur la description générale.\\nCalcule toujours les durées à partir de la DATE DU JOUR. Ne présente jamais comme récent un fait de plus de 12 mois (sauf pour dire « ça fait X ans que »). Ne parle que de l'entreprise qui recrute.\\n\\nÉTAPE 2 - CHOISIR LA PREUVE : dans PREUVES DISPONIBLES, celle qui parle le plus à cette personne pour cette offre. Une demi-phrase suffit.\\n\\nÉTAPE 3 - ÉCRIRE.\\nmessage_suivi (le message principal, envoyé une fois la connexion acceptée), dans cet ordre :\\n1. « Salut [prénom], » puis le fait sur la personne, suivi d'un mot humain et sincère (« j'espère que ça se passe bien », « ça doit être un sacré changement », « j'ai trouvé ça hyper intéressant »).\\n2. Le fait sur l'entreprise, avec une réaction spontanée et courte (« GG pour la levée, c'est trop cool », « bravo pour le lancement de X »).\\n3. Qui est Léo, en une phrase : étudiant en M1 à SKEMA + la preuve en quelques mots.\\n4. Ce qu'il cherche : un stage de 6 mois en [growth / bizdev] à partir de janvier, en mentionnant l'offre qu'il a vue chez eux.\\n5. La question : « Est-ce que tu serais dispo pour en discuter ? » ou une variante (15 minutes, un appel rapide).\\nEntre 350 et 600 caractères. Une ou deux phrases par ligne, un saut de ligne entre les idées. Pas de signature formelle : « Léo » à la fin, ou rien.\\n\\nmessage_connexion (la note jointe à la demande de connexion) : 200 caractères MAXIMUM. Même ton : « Salut [prénom], » + un des deux faits avec une réaction + « je suis étudiant à SKEMA et je m'intéresse à la growth chez [entreprise], ça me ferait plaisir d'échanger ! ». Pas de demande de stage dans cette note.\\n\\nTON :\\n- Tutoiement par défaut, comme dans les startups. Vouvoiement seulement pour une banque, une assurance, un cabinet ou un grand groupe traditionnel, ou si la personne est dirigeante d'une entreprise de plus de 1 000 personnes. Dans ce cas, « Bonjour [prénom], » et le même ton chaleureux.\\n- Phrases courtes, mots de tous les jours, comme à l'oral. Une seule expression familière par message au maximum (« GG », « trop cool », « hyper »), pas plus. Un ou deux points d'exclamation au maximum.\\n- Aucune flatterie sur le parcours, aucune formule de lettre de motivation.\\n- En français, sauf si la personne et l'offre sont clairement anglophones. En anglais, même structure : « Hey [first name], ».\\nINTERDIT : « je me permets », « n'hésitez pas », « passionné », « dynamique », « motivé », « opportunité », « je suis avec intérêt », « je suis de près », « votre parcours m'inspire », « ton parcours m'inspire », « impressionnant », « j'espère que vous allez bien », « au plaisir », « cordialement », « en tant que », « synergie », « valeur ajoutée », « véritable », « incroyable aventure », les tirets longs, les emojis, les listes à puces.\\n\\nAUTRES EXEMPLES DU BON NIVEAU (personnes et entreprises fictives) :\\n« Salut Camille, j'ai vu que tu avais pris la tête de la growth chez Lumio en septembre, j'espère que les débuts se passent bien ! Et bravo pour le lancement de l'offre self-serve, j'ai trouvé l'idée hyper maligne.\\nJe suis étudiant en M1 à SKEMA et j'ai construit seul un agent n8n qui repère les offres et prépare la prise de contact (c'est lui qui m'a mené à toi).\\nJe cherche un stage growth de 6 mois à partir de janvier et j'ai vu votre offre. Est-ce que tu serais dispo 15 minutes pour en discuter ?\\nLéo »\\n\\n« Salut Thomas, ton post sur les 3 erreurs de vos premiers recrutements sales m'a bien fait rire, surtout la deuxième. GG aussi pour l'ouverture de Kalo en Espagne, ça va vite chez vous !\\nJe suis en M1 à SKEMA. Avant, j'ai présidé un club de 500 adhérents où j'ai multiplié par 5 le budget partenariats.\\nJe cherche un stage en business development à partir de janvier et votre offre m'a tout de suite parlé. Tu aurais un moment pour en parler ?\\nLéo »\\n\\nÀ NE PAS FAIRE :\\n« Bonjour Camille, félicitations pour votre nouveau rôle ! Votre parcours m'inspire beaucoup. Passionné de growth, je me permets de vous contacter au sujet de votre offre de stage. »\\n\\nRéponds UNIQUEMENT en JSON avec ces clés : fait_personne (le fait et sa source, ou chaîne vide), fait_entreprise (le fait et sa source, ou chaîne vide), accroche (résumé des faits utilisés), type_accroche (personne, entreprise ou offre), preuve_utilisee (P1 à P5 et une phrase), message_connexion, message_suivi.\" }, { role: 'user', content: 'DATE DU JOUR : ' + $now.toISODate() + '\\n' + 'OFFRE : ' + $json.titre + ' chez ' + $json.entreprise + '\\nLien : ' + $json.lien_offre + '\\nSource : ' + $json.source + '\\nExtrait de l\\'offre : ' + ($json.description || '').slice(0, 1500) + '\\n\\nPERSONNE À CONTACTER : ' + ($json.contact_nom ? ($json.contact_nom + ', ' + $json.contact_poste + ' (confiance : ' + $json.confiance + ')') : 'aucune trouvée de façon fiable. Écris un message sans prénom, commençant par Bonjour,') + '\\n\\nINFOS SUR LA PERSONNE :\\n' + $json.infos_personne + '\\n\\nACTUALITÉS DE L\\'ENTREPRISE :\\n' + $json.actus } ] }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 30000
             }
-          ]
-        },
-        "options": {}
+          }
+        }
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        2544,
-        0
+        4500,
+        160
       ],
-      "id": "d5dfa341-1ce5-4c1a-b94b-9c76ce2d7f5f",
+      "id": "9393f20d-7d43-4a0b-ae81-ade43321f181",
+      "name": "Message IA",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Groq"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-oss-120b', temperature: 0.2, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: \"QUI EST LÉO (n'utilise que ces faits) :\\n- 20 ans, M1 du Programme Grande École de SKEMA Business School (campus de Sophia Antipolis, cursus 100 % en anglais). Avant : BTS GPME puis prépa ATS Éco-Gestion.\\n- Cherche un stage de 6 mois à partir de janvier 2027 en growth, growth marketing, business development ou GTM, idéalement à Paris.\\n\\nPREUVES DISPONIBLES (choisis la plus utile pour CETTE offre et CETTE personne, deux au maximum, jamais la liste complète) :\\nP1 - Automatisation / IA : il a construit seul, avec n8n et des LLM, l'agent qui a trouvé cette offre. Chaque jour il scanne les offres et les posts LinkedIn, note chaque offre selon son profil, identifie la bonne personne et prépare le message. Coût : 0 euro. Idéal pour growth, GTM, ops, startups IA ou automation.\\nP2 - Partenariats / vente : à 19 ans, président du GDO Quimper Escalade, le plus gros club d'escalade du Grand Ouest (500 adhérents, 6 salariés). Il y a multiplié par 5 le budget partenariats et organisé un championnat de France de paraescalade. Idéal pour bizdev, sales, partenariats, événementiel, sport.\\nP3 - Produit / acquisition : il construit Soiremy, une app sociale pour organiser ses sorties entre étudiants (Lovable + Supabase), avec un lancement sur invitation via des ambassadeurs. Idéal pour produit, apps grand public, community, marketplaces.\\nP4 - E-commerce : il lance une boutique Shopify mono-produit avec acquisition sur TikTok et Instagram. Pas encore de résultats chiffrés : n'en invente aucun. Idéal pour e-commerce, D2C, social ads, contenu.\\nP5 - Sport : grimpeur de compétition, champion de France scolaire d'escalade. Seulement si l'entreprise touche au sport ou à l'outdoor.\\n\\nTu es le relecteur de Léo. Tu reçois un brouillon de messages LinkedIn et les sources qui ont servi à l'écrire. Tu rends la version finale, prête à envoyer.\\nLe style visé est celui-ci, donné en exemple par des Heads of Growth :\\n« Salut Edouard, j'ai vu que ça faisait un an que tu étais arrivé à New York, j'espère que ça se passe bien ! GG pour la levée de fonds que vous venez de faire, c'est trop cool. Je suis étudiant en M1 à SKEMA et je cherche un stage en growth à partir de janvier. Est-ce que tu serais dispo pour en discuter ? »\\n\\nVérifie dans cet ordre :\\n1. Vérité : chaque fait (sur la personne, l'entreprise ou Léo) figure dans les SOURCES ou dans le profil de Léo, et concerne bien l'entreprise qui recrute. Les durées sont justes par rapport à la DATE DU JOUR. Supprime ou corrige tout fait absent ou faux.\\n2. Ordre : la personne d'abord, puis l'entreprise, puis Léo en une ou deux phrases, puis la demande. Si le message commence par Léo, remets-le dans le bon ordre.\\n3. Naturel : ça doit sonner comme un étudiant qui écrit spontanément, pas comme une IA ni comme une lettre de motivation. Tutoiement sauf banque, assurance, cabinet ou grand groupe traditionnel. Une seule expression familière au maximum, un ou deux points d'exclamation au maximum. Enlève les adjectifs inutiles et ces formules : « je me permets », « n'hésitez pas », « passionné », « dynamique », « motivé », « opportunité », « je suis avec intérêt », « je suis de près », « votre parcours m'inspire », « ton parcours m'inspire », « impressionnant », « j'espère que vous allez bien », « au plaisir », « cordialement », « en tant que », « synergie », « valeur ajoutée », « véritable », « incroyable aventure », les tirets longs, les emojis, les listes à puces.\\n4. Format : message_connexion 200 caractères maximum, sans demande de stage ; message_suivi entre 350 et 600 caractères, une ou deux phrases par ligne, une seule demande, à la fin.\\nSi le brouillon est déjà bon, garde-le tel quel. Ne rallonge jamais.\\n\\nNote ensuite la personnalisation de TA version finale, de 0 à 10 : 9-10 = un fait précis sur la personne ET une actu de l'entreprise ; 7-8 = un seul des deux, précis ; 4-6 = seulement un détail de l'offre ; 0-3 = générique, faits douteux ou mauvaise personne.\\nRéponds UNIQUEMENT en JSON avec ces clés : message_connexion, message_suivi, note_personnalisation (nombre), corrections (ce que tu as changé, en une phrase).\" }, { role: 'user', content: (() => { const c = $('Contexte').item.json; let b = {}; try { b = JSON.parse($json.choices[0].message.content); } catch (e) {} return 'DATE DU JOUR : ' + $now.toISODate() + '\\nOFFRE : ' + c.titre + ' chez ' + c.entreprise + '\\nPERSONNE : ' + (c.contact_nom ? c.contact_nom + ', ' + c.contact_poste : 'aucune') + '\\n\\nSOURCES\\nExtrait de l\\'offre : ' + (c.description || '').slice(0, 1200) + '\\n\\nInfos sur la personne :\\n' + c.infos_personne + '\\n\\nActualités :\\n' + c.actus + '\\n\\nBROUILLON\\nAccroche : ' + (b.accroche || '') + '\\nPreuve : ' + (b.preuve_utilisee || '') + '\\nmessage_connexion : ' + (b.message_connexion || '') + '\\nmessage_suivi : ' + (b.message_suivi || ''); })() } ] }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 30000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4720,
+        160
+      ],
+      "id": "32c41c20-9d06-4d8e-bf02-4f51f8e7c34b",
+      "name": "Relecture IA",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Groq"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Assemble la fiche finale et décide si elle part en \"À contacter\" ou en \"À relire\".\nconst c = $('Contexte').item.json;\nconst parse = s => { try { return JSON.parse(s); } catch (e) { return {}; } };\nconst brouillon = parse($('Message IA').item.json.choices?.[0]?.message?.content);\nconst finale = parse($json.choices?.[0]?.message?.content);\n\nconst connexion = (finale.message_connexion || brouillon.message_connexion || '').trim();\nconst suivi = (finale.message_suivi || brouillon.message_suivi || '').trim();\nconst note = Number(finale.note_personnalisation ?? 0);\n\n// Dernier filet de sécurité, sans IA.\nconst interdits = ['je me permets', \"n'hésitez pas\", 'passionné', 'dynamique', 'opportunité', 'votre parcours',\n  'impressionn', \"j'espère que vous allez bien\", 'cordialement', 'synergie', '—'];\nconst texte = (connexion + ' ' + suivi).toLowerCase();\nconst problemes = [];\nif (!connexion || !suivi) problemes.push('message manquant');\nif (connexion.length > 200) problemes.push('note de connexion trop longue (' + connexion.length + ' car.)');\nconst trouves = interdits.filter(f => texte.includes(f));\nif (trouves.length) problemes.push('formules à éviter : ' + trouves.join(', '));\nif (!['haute', 'moyenne'].includes(c.confiance)) problemes.push('contact incertain');\nif (note < 7) problemes.push('personnalisation ' + note + '/10');\n\nreturn { json: {\n  titre: c.titre, entreprise: c.entreprise, lien_offre: c.lien_offre, source: c.source, id: c.id,\n  score: c.score, raison: c.raison,\n  contact_nom: c.contact_nom, contact_poste: c.contact_poste,\n  // Pas de profil fiable : lien vers une recherche LinkedIn des gens de l'entreprise.\n  contact_linkedin: c.contact_linkedin || ('https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(c.entreprise)),\n  pourquoi_contact: c.pourquoi_contact, confiance: c.confiance,\n  accroche: brouillon.accroche || '', preuve: brouillon.preuve_utilisee || '',\n  message_connexion: connexion, message_suivi: suivi,\n  personnalisation: note,\n  statut: problemes.length ? 'À relire' : 'À contacter',\n  raison_relecture: problemes.join(' ; ') + (finale.corrections ? (problemes.length ? ' | ' : '') + 'Relecteur : ' + finale.corrections : '')\n} };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4940,
+        160
+      ],
+      "id": "75a468e5-70b1-47e8-b117-afec3bef6019",
       "name": "Prospect"
     },
     {
@@ -497,9 +688,8 @@
         "resource": "databasePage",
         "dataSourceId": {
           "__rl": true,
-          "value": "YOUR_NOTION_DATABASE_ID",
-          "mode": "list",
-          "cachedResultName": "Prospection stages"
+          "value": "YOUR_NOTION_DATA_SOURCE_ID",
+          "mode": "id"
         },
         "title": "={{ $json.entreprise }}",
         "propertiesUi": {
@@ -514,11 +704,11 @@
             },
             {
               "key": "Raison|rich_text",
-              "textContent": "={{ $json.raison }}"
+              "textContent": "={{ $json.raison + ($json.raison_relecture ? '\\n\\nÀ vérifier : ' + $json.raison_relecture : '') }}"
             },
             {
               "key": "Statut|select",
-              "selectValue": "À contacter"
+              "selectValue": "={{ $json.statut }}"
             },
             {
               "key": "Contact|rich_text",
@@ -550,7 +740,27 @@
             },
             {
               "key": "ID offre|rich_text",
-              "textContent": "={{ $('Résultat IA').item.json.id }}"
+              "textContent": "={{ $json.id }}"
+            },
+            {
+              "key": "Source|rich_text",
+              "textContent": "={{ $json.source }}"
+            },
+            {
+              "key": "Personnalisation|number",
+              "numberValue": "={{ $json.personnalisation }}"
+            },
+            {
+              "key": "Confiance contact|select",
+              "selectValue": "={{ $json.confiance }}"
+            },
+            {
+              "key": "Preuve utilisée|rich_text",
+              "textContent": "={{ $json.preuve }}"
+            },
+            {
+              "key": "Pourquoi ce contact|rich_text",
+              "textContent": "={{ $json.pourquoi_contact }}"
             }
           ]
         },
@@ -562,10 +772,10 @@
       "type": "n8n-nodes-base.notion",
       "typeVersion": 3,
       "position": [
-        2704,
-        0
+        5160,
+        160
       ],
-      "id": "b9e814a2-1259-4f52-83c0-dc83eca9f684",
+      "id": "41bb6709-d210-4ebf-9e52-95e1245118eb",
       "name": "Envoi Notion",
       "credentials": {
         "notionApi": {
@@ -575,120 +785,286 @@
     },
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "triggerAtHour": 9
-            }
-          ]
-        }
+        "mode": "append",
+        "numberInputs": 2
       },
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.4,
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
       "position": [
-        0,
-        80
+        1340,
+        160
       ],
-      "id": "76740069-5d22-4d5c-83cc-e5ec8b4eb0e1",
-      "name": "Schedule Trigger"
+      "id": "8255db1a-0867-46cb-a94c-82b24d690615",
+      "name": "Fusion des offres"
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 4
-          },
-          "conditions": [
-            {
-              "id": "35d59aa3-b440-4702-b0d4-a28f99bc31e0",
-              "leftValue": "={{ /(stage|stagiaire|intern)/i.test($json.titre) && !/(alternance|apprenti|cdi)/i.test($json.titre) }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+        "jsCode": "// Clé stable : même entreprise + même poste = même offre, quelle que soit la source.\n// L'identifiant JSearch ou l'URL changent selon le site, pas cette clé.\nconst norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();\nconst formes = new Set(['sas','sa','sarl','group','groupe','france','inc','ltd','the']);\nconst vides = new Set(['stage','stagiaire','intern','internship','h','f','m','x','hf','fh','mf','fm','de','du','des','la','le','les','en','et','a','au','un','une','of','and','in','for','paris','france','mois','6','janvier','2027','startup']);\nreturn $input.all().map(item => {\n  const j = item.json;\n  const entreprise = norm(j.entreprise).split(' ').filter(m => m && !formes.has(m)).join(' ');\n  const poste = [...new Set(norm(j.titre).split(' ').filter(m => m && !vides.has(m)))].sort().join(' ');\n  const id = entreprise && poste ? entreprise + '|' + poste : j.id;\n  return { json: { ...j, id_source: j.id, id } };\n});"
       },
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.4,
-      "position": [
-        1088,
-        0
-      ],
-      "id": "d3146975-1a8a-49e4-b90a-4c186c19d14f",
-      "name": "Filtre stages"
-    },
-    {
-      "parameters": {
-        "operation": "removeItemsSeenInPreviousExecutions",
-        "dedupeValue": "={{ $json.id }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.removeDuplicates",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        864,
-        0
+        1490,
+        160
       ],
-      "id": "2b8cfac4-5802-4018-b5e7-9698803acebd",
-      "name": "Déjà vues"
+      "id": "f935f440-ff22-44c5-8123-a190af8ba9d7",
+      "name": "Clé stable"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "dataSourceId": {
+          "__rl": true,
+          "value": "YOUR_NOTION_DATA_SOURCE_ID",
+          "mode": "id"
+        },
+        "returnAll": true,
+        "simple": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 3,
+      "position": [
+        1860,
+        -40
+      ],
+      "id": "52459302-1ba8-4655-8306-b59b779e51fa",
+      "name": "Lire Notion",
+      "credentials": {
+        "notionApi": {
+          "name": "Notion account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retire les offres déjà présentes dans la base Notion.\n// Compare avec la clé entreprise + poste, l'ID offre et le lien de l'offre.\nconst norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();\nconst formes = new Set(['sas','sa','sarl','group','groupe','france','inc','ltd','the']);\nconst vides = new Set(['stage','stagiaire','intern','internship','h','f','m','x','hf','fh','mf','fm','de','du','des','la','le','les','en','et','a','au','un','une','of','and','in','for','paris','france','mois','6','janvier','2027','startup']);\nconst cle = (entreprise, titre) => {\n  const e = norm(entreprise).split(' ').filter(m => m && !formes.has(m)).join(' ');\n  const p = [...new Set(norm(titre).split(' ').filter(m => m && !vides.has(m)))].sort().join(' ');\n  return e && p ? e + '|' + p : '';\n};\nconst texte = p => {\n  if (!p) return '';\n  if (p.type === 'url') return p.url || '';\n  return (p[p.type] || []).map(t => t.plain_text || '').join('');\n};\nconst connus = new Set();\nlet lignes = 0;\nfor (const item of $input.all()) {\n  const props = item.json.properties;\n  if (!props) continue;\n  lignes++;\n  const titre = Object.values(props).find(p => p.type === 'title');\n  for (const v of [cle(texte(titre), texte(props['Poste'])), texte(props['ID offre']), texte(props['Lien offre'])]) {\n    if (v) connus.add(v);\n  }\n}\nconst offres = $('Doublons du jour').all();\nconst gardees = offres.filter(o => ![o.json.id, o.json.id_source, o.json.lien_offre].some(v => v && connus.has(v)));\nconsole.log(`Notion : ${lignes} lignes lues, ${offres.length - gardees.length} doublons retirés, ${gardees.length} offres gardées`);\nreturn gardees;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1860,
+        160
+      ],
+      "id": "96c9fd1a-03d1-44e4-814d-d58574700d8c",
+      "name": "Pas déjà dans Notion"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Repère les lignes en double dans Notion et choisit lesquelles mettre à la corbeille.\n// Doublon = même entreprise + même poste, ou même ID offre.\n// On ne touche jamais à une ligne déjà travaillée (statut autre que À contacter / À relire).\nconst norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();\nconst formes = new Set(['sas','sa','sarl','group','groupe','france','inc','ltd','the']);\nconst vides = new Set(['stage','stagiaire','intern','internship','h','f','m','x','hf','fh','mf','fm','de','du','des','la','le','les','en','et','a','au','un','une','of','and','in','for','paris','france','mois','6','janvier','2027','startup']);\nconst cle = (entreprise, titre) => {\n  const e = norm(entreprise).split(' ').filter(m => m && !formes.has(m)).join(' ');\n  const p = [...new Set(norm(titre).split(' ').filter(m => m && !vides.has(m)))].sort().join(' ');\n  return e && p ? e + '|' + p : '';\n};\nconst texte = p => {\n  if (!p) return '';\n  if (p.type === 'select') return p.select ? p.select.name : '';\n  return (p[p.type] || []).map(t => t.plain_text || '').join('');\n};\nconst lignes = $input.all().map(i => i.json).filter(j => j.properties).map(j => {\n  const titre = texte(Object.values(j.properties).find(p => p.type === 'title'));\n  return { page_id: j.id, entreprise: titre, poste: texte(j.properties['Poste']), statut: texte(j.properties['Statut']),\n    cree: j.created_time || '', cles: [cle(titre, texte(j.properties['Poste'])), texte(j.properties['ID offre'])].filter(Boolean) };\n});\n// Regroupe les lignes qui partagent une clé (union-find).\nconst parent = lignes.map((_, i) => i);\nconst racine = i => parent[i] === i ? i : (parent[i] = racine(parent[i]));\nconst vu = new Map();\nlignes.forEach((l, i) => l.cles.forEach(c => { if (vu.has(c)) parent[racine(i)] = racine(vu.get(c)); else vu.set(c, i); }));\nconst groupes = new Map();\nlignes.forEach((l, i) => { const r = racine(i); groupes.set(r, [...(groupes.get(r) || []), l]); });\n\nconst sansAction = new Set(['À contacter', 'À relire', '']);\nconst aSupprimer = [];\nfor (const g of groupes.values()) {\n  if (g.length < 2) continue;\n  const intactes = g.filter(l => sansAction.has(l.statut));\n  // Une ligne travaillée existe : toutes les intactes partent. Sinon on garde la plus récente, en préférant À contacter.\n  const gardee = intactes.length === g.length\n    ? [...g].sort((a, b) => (a.statut === 'À contacter' ? 0 : 1) - (b.statut === 'À contacter' ? 0 : 1) || b.cree.localeCompare(a.cree))[0]\n    : null;\n  for (const l of intactes) if (l !== gardee) aSupprimer.push(l);\n}\n// Garde-fou : au-delà de la moitié de la base, c'est sûrement un bug. On ne supprime rien.\nif (aSupprimer.length > lignes.length / 2) {\n  console.log(`Nettoyage annulé : ${aSupprimer.length} lignes sur ${lignes.length} seraient supprimées.`);\n  return [];\n}\nconsole.log(`Nettoyage Notion : ${aSupprimer.length} doublons mis à la corbeille sur ${lignes.length} lignes`);\nreturn aSupprimer.map(l => ({ json: { page_id: l.page_id, entreprise: l.entreprise, poste: l.poste, statut: l.statut } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -240
+      ],
+      "id": "a9419633-09db-45cf-8746-714fda8949b0",
+      "name": "Repérer doublons Notion"
+    },
+    {
+      "parameters": {
+        "resource": "page",
+        "operation": "archive",
+        "pageId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.page_id }}"
+        },
+        "simple": true
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 3,
+      "position": [
+        2220,
+        -240
+      ],
+      "id": "e816a84f-f13f-4b48-902a-4d954a6d85cd",
+      "name": "Corbeille Notion",
+      "credentials": {
+        "notionApi": {
+          "name": "Notion account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
   "connections": {
-    "When clicking ‘Execute workflow’": {
+    "Lancement manuel": {
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Requêtes JSearch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Requêtes posts LinkedIn",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP Request": {
+    "Tous les jours 9h": {
       "main": [
         [
           {
-            "node": "Split Out",
+            "node": "Requêtes JSearch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Requêtes posts LinkedIn",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Split Out": {
+    "Requêtes JSearch": {
       "main": [
         [
           {
-            "node": "Edit Fields",
+            "node": "Recherche JSearch",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Edit Fields": {
+    "Recherche JSearch": {
       "main": [
         [
           {
-            "node": "Déjà vues",
+            "node": "Offres JSearch",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Gemini": {
+    "Requêtes posts LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Recherche posts LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recherche posts LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Garder les posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Garder les posts": {
+      "main": [
+        [
+          {
+            "node": "Posts déjà vus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Posts déjà vus": {
+      "main": [
+        [
+          {
+            "node": "Lire le post (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire le post (IA)": {
+      "main": [
+        [
+          {
+            "node": "Offres posts LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Offres JSearch": {
+      "main": [
+        [
+          {
+            "node": "Fusion des offres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Offres posts LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Fusion des offres",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Doublons du jour": {
+      "main": [
+        [
+          {
+            "node": "Lire Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Déjà vues": {
+      "main": [
+        [
+          {
+            "node": "Filtre stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtre stages": {
+      "main": [
+        [
+          {
+            "node": "Scoring IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scoring IA": {
       "main": [
         [
           {
@@ -699,40 +1075,84 @@
         ]
       ]
     },
-    "Tavily Contact": {
-      "main": [
-        [
-          {
-            "node": "Tavily News",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Résultat IA": {
       "main": [
         [
           {
-            "node": "Filter-score",
+            "node": "Score ≥ 7",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filter-score": {
+    "Score ≥ 7": {
       "main": [
         [
           {
-            "node": "Tavily Contact",
+            "node": "Chercher contacts",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Tavily News": {
+    "Chercher contacts": {
+      "main": [
+        [
+          {
+            "node": "Filtrer profils",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrer profils": {
+      "main": [
+        [
+          {
+            "node": "Choisir contact (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Choisir contact (IA)": {
+      "main": [
+        [
+          {
+            "node": "Contact choisi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact choisi": {
+      "main": [
+        [
+          {
+            "node": "Recherche sur la personne",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recherche sur la personne": {
+      "main": [
+        [
+          {
+            "node": "Chercher actus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chercher actus": {
       "main": [
         [
           {
@@ -758,6 +1178,17 @@
       "main": [
         [
           {
+            "node": "Relecture IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relecture IA": {
+      "main": [
+        [
+          {
             "node": "Prospect",
             "type": "main",
             "index": 0
@@ -776,33 +1207,60 @@
         ]
       ]
     },
-    "Schedule Trigger": {
+    "Fusion des offres": {
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Clé stable",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filtre stages": {
+    "Clé stable": {
       "main": [
         [
           {
-            "node": "Gemini",
+            "node": "Doublons du jour",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Déjà vues": {
+    "Lire Notion": {
       "main": [
         [
           {
-            "node": "Filtre stages",
+            "node": "Repérer doublons Notion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pas déjà dans Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pas déjà dans Notion": {
+      "main": [
+        [
+          {
+            "node": "Déjà vues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Repérer doublons Notion": {
+      "main": [
+        [
+          {
+            "node": "Corbeille Notion",
             "type": "main",
             "index": 0
           }
@@ -812,15 +1270,6 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate",
-    "timeSavedMode": "fixed",
-    "timezone": "Europe/Paris",
-    "callerPolicy": "workflowsFromSameOwner",
-    "executionTimeout": -1,
-    "availableInMCP": false
-  },
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
-  "nodeGroups": []
+    "timezone": "Europe/Paris"
+  }
 }
